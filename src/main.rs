@@ -7,7 +7,10 @@ use std::hash::{Hash, Hasher};
 use std::cmp::max;
 
 // 基本的に http://d.hatena.ne.jp/jetbead/20130222/1361603458 の写経
+// 理論解説は http://blog.brainpad.co.jp/entry/2016/06/27/110000 が解りやすい
 
+// structのメンバ関数にしてprivate publicを切り分けたほうが良い気がする
+// デバッグでprivateな方が良さ気なメソッド(rhoとか)も呼びたかったので妥協
 trait HLLfunc{
     fn alpha(&self, mm: i32) -> f64;
     fn hash(&self, str: &String) -> u64;
@@ -55,6 +58,7 @@ impl HLLfunc for HyperLogLog{
     }
 
     fn rho(&self, x:u64) -> i32 {
+        // 最初に1が立つのが何ビット目かを返す。例 1->1、2->2、3->1
         for i in 0..32{
             if (x >> i) & 1 != 0{
                return i+1;
@@ -81,6 +85,7 @@ impl HLLfunc for HyperLogLog{
     }
 
     fn add(self : &mut Self, str: &String){
+        // 文字列からハッシュを生成し、下位10（mainで決めた値）ビットをアドレスにする
         self.s.insert(str.to_string());
         let x = self.hash(str);
         let j = 1 + self.lower_bit(x);
@@ -89,30 +94,33 @@ impl HLLfunc for HyperLogLog{
     }
 
     fn estimate(&self) -> u64{
-        let mut E = self.alpha(self.m) * self.harmonic_mean() * ((self.m * self.m) as f64);
+        let mut e = self.alpha(self.m) * self.harmonic_mean() * ((self.m * self.m) as f64);
         
-        if E <= 2.5f64 * self.m as f64 {
-            let mut V : i32 = 0;
+        if e <= 2.5f64 * self.m as f64 {
+            let mut v : i32 = 0;
             for i in 1..self.m {
                 if self.regs[i as usize] == 0 {
-                    V += 1;
+                    v += 1;
                 }
             }
-            if V != 0 {
-                E = self.m as f64 * (self.m as f64 / V as f64).ln();
+            if v != 0 {
+                e = self.m as f64 * (self.m as f64 / v as f64).ln();
             }
         }
-        if E > 1.0/30.0 * 4294967296.0{
-            E = -4294967296.0 * (1.0 - E/4294967296.0).log2();
+        if e > 1.0/30.0 * 4294967296.0{
+            e = -4294967296.0 * (1.0 - e/4294967296.0).log2();
         }
-        println!("real,estimate = {},{}", self.s.len(), E);
-        E as u64
+        println!("real,estimate = {},{}", self.s.len(), e);
+        e as u64
     }
 
     fn dump_register_value(&self){
+        // レジスタの値を書き出す。デバッグ用
+        println!("value of register (regs[j])");
         let mut outstr : String = "".to_string();
         for j in 1..self.m+1 {
-            outstr += &format!("{} ",self.regs[j as usize]); // int to strなどの変換はこうやるっぽい
+            // int to strなどの変換はこうやるっぽい
+            outstr += &format!("{} ",self.regs[j as usize]); 
         }
         println!("{}", outstr);
     }
@@ -127,7 +135,7 @@ fn randomstr(n: u32) -> String{
         outstr += &atoz[secret..secret+1];
     }
     /*
-    // 一文字ずつ表現
+    // 一文字ずつ表現（今回は使わなかったけど、ハマる要素なのでメモ）
     for i in 0..outstr.len() {
         println!("{}", outstr.chars().nth(i).unwrap());
     }
@@ -138,10 +146,13 @@ fn randomstr(n: u32) -> String{
 fn main() {
     println!("HLL by rust");
     println!("set the number of letter to generate");
-    // assume m = 2^b, b in [4,16]
+
     let mut hlog = HyperLogLog {b:0, m:0, regs: Vec::new(), s:BTreeSet::new() };
+    // レジスタのサイズ。この場合は2^10になる
     hlog.init(10);
     loop{
+        // 標準入力から何文字の文字列を創るか決定する。
+        // https://rust-lang-ja.github.io/the-rust-programming-language-ja/1.6/book/guessing-game.html を参照
         let mut guess = String::new();
         io::stdin().read_line(&mut guess).expect("Failed to read");
         let guess: u32 = match guess.trim().parse(){
@@ -151,12 +162,14 @@ fn main() {
 
         for i in 0..100000 {
             let inpstr = randomstr(guess);
-            //println!("{}",inpstr);
+            // randomstrでguess文字の文字列生成、addでhyperloglogに追加、estimateで数える
             hlog.add(&inpstr);
             if i % 100 == 0 {
                 hlog.estimate();
             }
         }
+        // 最後にレジスタの中身を見てみる
+        hlog.dump_register_value();
         
         break;
     }
