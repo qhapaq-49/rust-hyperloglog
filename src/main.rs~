@@ -1,0 +1,26 @@
+extern crate rand;
+use std::io;
+use rand::Rng;
+
+fn randomstr(n: u32){
+    let secret = rand::thread_rng().gen_range(0,9);
+    let mut outstr = "".to_string();
+    for i in 0..n {
+        outstr += format!("{}",i);
+    }
+    println!("{}",outstr);
+}
+
+fn main() {
+    println!("HLL by rust");
+    loop{
+        let mut guess = String::new();
+        io::stdin().read_line(&mut guess).expect("Failed to read");
+        let guess: u32 = match guess.trim().parse(){
+	    Ok(num) => num,
+	    Err(_) => continue,
+        };
+        randomstr(guess);
+        break;
+    }
+}

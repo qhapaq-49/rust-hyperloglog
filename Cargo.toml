@@ -1,0 +1,7 @@
+[package]
+name = "hyperloglog"
+version = "0.1.0"
+authors = ["shiku <hoge@piyo.com>"]
+
+[dependencies]
+rand="0.3.0"
