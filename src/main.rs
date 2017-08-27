@@ -6,6 +6,8 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::cmp::max;
 
+// 基本的に http://d.hatena.ne.jp/jetbead/20130222/1361603458 の写経
+
 trait HLLfunc{
     fn alpha(&self, mm: i32) -> f64;
     fn hash(&self, str: &String) -> u64;
